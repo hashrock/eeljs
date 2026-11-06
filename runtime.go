@@ -25,6 +25,7 @@ func bundle(entry string) (string, error) {
 		Target:      api.ES2017,
 		Platform:    api.PlatformNeutral,
 		LogLevel:    api.LogLevelError,
+		Plugins:     []api.Plugin{remoteImports},
 	})
 	if len(r.Errors) > 0 {
 		return "", fmt.Errorf("%s", r.Errors[0].Text)
