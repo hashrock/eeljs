@@ -36,10 +36,10 @@ Changing the code (including imports) requires granting again.
 
 ## Design
 
-- **Simple over fast**: every API is synchronous. No event loop.
+- **Simple over fast**: every I/O API is synchronous. The event loop only runs timers.
 - TS and `import` (relative paths and URLs) are bundled with esbuild and run on goja.
 - URL imports are fetched once and cached (`~/Library/Caches/eel/deps`). Fetching them needs no permission.
-- Web globals: `URL` / `URLSearchParams` / `TextEncoder` / `TextDecoder` / `WeakRef` / `FinalizationRegistry`
+- Web globals: `console` / `setTimeout` / `clearTimeout` / `queueMicrotask` / `URL` / `URLSearchParams` / `TextEncoder` / `TextDecoder` / `WeakRef` / `FinalizationRegistry`
 - Permission kinds: `read` / `write` (a directory grant covers its contents), `net` (host), `env` (variable name), `run` (command name)
 
 API types: `eel.d.ts`

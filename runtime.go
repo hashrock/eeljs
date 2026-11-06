@@ -56,6 +56,7 @@ func run(script string, args []string) int {
 		fmt.Fprintln(os.Stderr, "eel:", err)
 		return 1
 	}
+	l := newLoop(vm, installWebAPI(vm))
 	install(vm, guard, args)
 
 	var status int
@@ -69,7 +70,7 @@ func run(script string, args []string) int {
 				status = int(c)
 			}
 		}()
-		if _, err := vm.RunString(code); err != nil {
+		if err := l.run(code); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			status = 1
 		}
@@ -95,7 +96,7 @@ type runResult struct {
 	Stderr string `json:"stderr"`
 }
 
-// install provides synchronous APIs only, so no event loop is needed.
+// install provides synchronous APIs only, so the event loop only has timers to wait on.
 func install(vm *goja.Runtime, g *Guard, args []string) {
 	// must checks the permission and throws a JS exception if denied.
 	must := func(kind, target string) {
@@ -109,13 +110,6 @@ func install(vm *goja.Runtime, g *Guard, args []string) {
 			panic(vm.NewGoError(err))
 		}
 	}
-
-	installWebAPI(vm)
-
-	console := vm.NewObject()
-	console.Set("log", func(xs ...any) { fmt.Fprintln(os.Stdout, xs...) })
-	console.Set("error", func(xs ...any) { fmt.Fprintln(os.Stderr, xs...) })
-	vm.Set("console", console)
 
 	eel := vm.NewObject()
 	eel.Set("args", args)
