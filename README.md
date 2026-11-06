@@ -27,6 +27,11 @@ eel run examples/hello.ts
 - **速さより単純さ**: API はすべて同期。イベントループは持たない。
 - TS と `import`（相対パス・URL）は esbuild でバンドルし、goja で実行する。
 - URL の import は初回だけ取得してキャッシュする（`~/Library/Caches/eel/deps`）。取得に許可は不要。
+- Web 標準のグローバル: `URL` / `URLSearchParams` / `TextEncoder` / `TextDecoder` / `WeakRef` / `FinalizationRegistry`
 - 許可の種類: `read` / `write`（ディレクトリを許可すると配下も含む）、`net`（ホスト）、`env`（変数名）、`run`（コマンド名）
 
 API の型定義: `eel.d.ts`
+
+## 制約
+
+- `WeakRef` は対象を手放さず、`FinalizationRegistry` のコールバックは呼ばれない。JS エンジン（goja）が未対応のための簡易版で、短時間で終わる CLI では問題にならない想定。

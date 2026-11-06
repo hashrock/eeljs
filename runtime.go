@@ -100,6 +100,8 @@ func install(vm *goja.Runtime, g *Guard, args []string) {
 		}
 	}
 
+	installWebAPI(vm)
+
 	console := vm.NewObject()
 	console.Set("log", func(xs ...any) { fmt.Fprintln(os.Stdout, xs...) })
 	console.Set("error", func(xs ...any) { fmt.Fprintln(os.Stderr, xs...) })

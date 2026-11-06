@@ -15,7 +15,7 @@ import (
 )
 
 // remoteImports は URL からの import を取得してバンドルに含める。
-// Deno と同じく、import のための取得には許可を求めない。
+// import のための取得には許可を求めない。
 var remoteImports = api.Plugin{
 	Name: "url",
 	Setup: func(b api.PluginBuild) {
