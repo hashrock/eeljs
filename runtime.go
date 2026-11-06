@@ -45,7 +45,17 @@ func run(script string, args []string) int {
 
 	vm := goja.New()
 	vm.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
-	guard := &Guard{path: path, app: appID(path, code), store: loadStore()}
+	m, err := readManifest(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "eel:", err)
+		return 1
+	}
+	guard := &Guard{path: path, app: appID(path, code, m.Pin), store: loadStore()}
+	// 宣言された許可は実行に必要なものなので、得られなければ実行しない
+	if err := guard.check(m.Allow...); err != nil {
+		fmt.Fprintln(os.Stderr, "eel:", err)
+		return 1
+	}
 	install(vm, guard, args)
 
 	var status int

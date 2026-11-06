@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -19,13 +18,10 @@ type Grant struct {
 	Target string `json:"target"` // パス / ホスト / 変数名 / コマンド名
 }
 
-var pinMark = regexp.MustCompile(`(?m)^// @eel-pin\s*$`)
-
 // appID は許可を紐付けるアプリの識別子。
-// 通常はパス。エントリに `// @eel-pin` があれば中身のハッシュも含め、書き換えると許可が外れる。
-func appID(path, code string) string {
-	src, _ := os.ReadFile(path)
-	if !pinMark.Match(src) {
+// 通常はパス。pin なら中身のハッシュも含め、書き換えると許可が外れる。
+func appID(path, code string, pin bool) string {
+	if !pin {
 		return path
 	}
 	sum := sha256.Sum256([]byte(code))
@@ -92,15 +88,21 @@ type Guard struct {
 	tty     *bufio.ReadWriter
 }
 
-func (g *Guard) check(want Grant) error {
-	for _, have := range slices.Concat(g.store.Grants[g.app], g.session) {
-		if have.covers(want) {
-			return nil
+// check は未許可のものだけを、まとめて1回尋ねる。
+func (g *Guard) check(wants ...Grant) error {
+	have := slices.Concat(g.store.Grants[g.app], g.session)
+	var missing []Grant
+	for _, w := range wants {
+		if !slices.ContainsFunc(have, func(h Grant) bool { return h.covers(w) }) {
+			missing = append(missing, w)
 		}
 	}
-	switch g.ask(want) {
+	if len(missing) == 0 {
+		return nil
+	}
+	switch g.ask(missing) {
 	case "a":
-		grants := append(g.store.Grants[g.app], want)
+		grants := append(g.store.Grants[g.app], missing...)
 		g.store.revoke(g.path) // 古いハッシュの許可を掃除する
 		g.store.Grants[g.app] = grants
 		if err := g.store.save(); err != nil {
@@ -108,14 +110,22 @@ func (g *Guard) check(want Grant) error {
 		}
 		return nil
 	case "y":
-		g.session = append(g.session, want)
+		g.session = append(g.session, missing...)
 		return nil
 	}
-	return fmt.Errorf("PermissionDenied: %s %s", want.Kind, want.Target)
+	return fmt.Errorf("PermissionDenied: %s", strings.Join(lines(missing), ", "))
+}
+
+func lines(gs []Grant) []string {
+	out := make([]string, len(gs))
+	for i, g := range gs {
+		out[i] = g.Kind + " " + g.Target
+	}
+	return out
 }
 
 // ask は端末で利用者に尋ねる。端末が無ければ拒否。
-func (g *Guard) ask(want Grant) string {
+func (g *Guard) ask(wants []Grant) string {
 	if g.tty == nil {
 		f, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 		if err != nil {
@@ -123,7 +133,10 @@ func (g *Guard) ask(want Grant) string {
 		}
 		g.tty = bufio.NewReadWriter(bufio.NewReader(f), bufio.NewWriter(f))
 	}
-	fmt.Fprintf(g.tty, "\n⚠️  %s が %s へのアクセスを求めています: %s\n", filepath.Base(g.app), want.Kind, want.Target)
+	fmt.Fprintf(g.tty, "\n⚠️  %s が次のアクセスを求めています:\n", filepath.Base(g.app))
+	for _, w := range wants {
+		fmt.Fprintf(g.tty, "     %-5s %s\n", w.Kind, w.Target)
+	}
 	fmt.Fprint(g.tty, "   [y] 今回のみ  [a] 常に許可  [n] 拒否 > ")
 	g.tty.Flush()
 	line, _ := g.tty.ReadString('\n')
