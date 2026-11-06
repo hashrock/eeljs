@@ -14,15 +14,15 @@ import (
 	"github.com/evanw/esbuild/pkg/api"
 )
 
-// remoteImports は URL からの import を取得してバンドルに含める。
-// import のための取得には許可を求めない。
+// remoteImports fetches URL imports and includes them in the bundle.
+// Fetching imports needs no permission.
 var remoteImports = api.Plugin{
 	Name: "url",
 	Setup: func(b api.PluginBuild) {
 		b.OnResolve(api.OnResolveOptions{Filter: `^https?://`}, func(a api.OnResolveArgs) (api.OnResolveResult, error) {
 			return api.OnResolveResult{Path: a.Path, Namespace: "url"}, nil
 		})
-		// URL モジュール内の import は、取り込み元の URL を基準に解決する
+		// Imports inside a URL module resolve against the importer's URL.
 		b.OnResolve(api.OnResolveOptions{Filter: `.*`, Namespace: "url"}, func(a api.OnResolveArgs) (api.OnResolveResult, error) {
 			base, err := url.Parse(a.Importer)
 			if err != nil {
@@ -44,7 +44,7 @@ var remoteImports = api.Plugin{
 	},
 }
 
-// fetchCached は URL の中身を返す。URL は不変とみなし、一度取得したら再取得しない。
+// fetchCached returns the URL's contents. URLs are treated as immutable, so each is fetched only once.
 func fetchCached(u string) (string, error) {
 	dir, err := os.UserCacheDir()
 	if err != nil {

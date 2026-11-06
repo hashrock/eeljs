@@ -1,7 +1,7 @@
 // @eel-allow net api.github.com
 // @eel-allow env GITHUB_TOKEN
 
-// 使い方: eel run examples/stars.ts dop251/goja
+// Usage: eel run examples/stars.ts dop251/goja
 const repo = eel.args[0] ?? "dop251/goja";
 const token = eel.env("GITHUB_TOKEN");
 

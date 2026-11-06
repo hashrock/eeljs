@@ -1,2 +1,2 @@
 // @eel-pin
-console.log(eel.env("HOME") ? "HOME あり" : "HOME なし");
+console.log(eel.env("HOME") ? "HOME is set" : "HOME is not set");

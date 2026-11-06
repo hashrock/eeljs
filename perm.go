@@ -12,14 +12,14 @@ import (
 	"strings"
 )
 
-// Grant は「このスクリプトに、この種類のアクセスを、この対象へ許可した」という記録。
+// Grant records that a script may perform one kind of access on one target.
 type Grant struct {
 	Kind   string `json:"kind"`   // read | write | net | env | run
-	Target string `json:"target"` // パス / ホスト / 変数名 / コマンド名
+	Target string `json:"target"` // path / host / variable name / command name
 }
 
-// appID は許可を紐付けるアプリの識別子。
-// 通常はパス。pin なら中身のハッシュも含め、書き換えると許可が外れる。
+// appID identifies the app that grants belong to.
+// Normally the path. When pinned it includes a hash of the code, so editing the code drops the grants.
 func appID(path, code string, pin bool) string {
 	if !pin {
 		return path
@@ -28,7 +28,7 @@ func appID(path, code string, pin bool) string {
 	return path + "#" + hex.EncodeToString(sum[:])[:12]
 }
 
-// revoke はパスに紐づく許可を、ハッシュ違いも含めてすべて消す。
+// revoke removes every grant for the path, including other hashes.
 func (s *Store) revoke(path string) {
 	for id := range s.Grants {
 		if id == path || strings.HasPrefix(id, path+"#") {
@@ -37,7 +37,7 @@ func (s *Store) revoke(path string) {
 	}
 }
 
-// Store はアプリごとに「常に許可」された Grant を保存する。
+// Store persists "always" grants per app.
 type Store struct {
 	path   string
 	Grants map[string][]Grant `json:"grants"`
@@ -67,7 +67,7 @@ func (s *Store) save() error {
 	return os.WriteFile(s.path, b, 0o600)
 }
 
-// covers: パス系はディレクトリ許可が配下を含む。それ以外は完全一致。
+// covers: a directory grant covers its contents; other kinds must match exactly.
 func (g Grant) covers(want Grant) bool {
 	if g.Kind != want.Kind {
 		return false
@@ -79,16 +79,16 @@ func (g Grant) covers(want Grant) bool {
 	return g.Target == want.Target
 }
 
-// Guard は1回の実行中の許可判定を担う。
+// Guard decides permissions during a single run.
 type Guard struct {
 	path    string
 	app     string
 	store   *Store
-	session []Grant // 「今回のみ」許可
+	session []Grant // "this time" grants
 	tty     *bufio.ReadWriter
 }
 
-// check は未許可のものだけを、まとめて1回尋ねる。
+// check asks once for everything not yet granted.
 func (g *Guard) check(wants ...Grant) error {
 	have := slices.Concat(g.store.Grants[g.app], g.session)
 	var missing []Grant
@@ -103,10 +103,10 @@ func (g *Guard) check(wants ...Grant) error {
 	switch g.ask(missing) {
 	case "a":
 		grants := append(g.store.Grants[g.app], missing...)
-		g.store.revoke(g.path) // 古いハッシュの許可を掃除する
+		g.store.revoke(g.path) // drop grants for old hashes
 		g.store.Grants[g.app] = grants
 		if err := g.store.save(); err != nil {
-			fmt.Fprintln(os.Stderr, "eel: 許可の保存に失敗:", err)
+			fmt.Fprintln(os.Stderr, "eel: failed to save grants:", err)
 		}
 		return nil
 	case "y":
@@ -124,7 +124,7 @@ func lines(gs []Grant) []string {
 	return out
 }
 
-// ask は端末で利用者に尋ねる。端末が無ければ拒否。
+// ask prompts on the terminal. Without one, it denies.
 func (g *Guard) ask(wants []Grant) string {
 	if g.tty == nil {
 		f, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
@@ -133,11 +133,11 @@ func (g *Guard) ask(wants []Grant) string {
 		}
 		g.tty = bufio.NewReadWriter(bufio.NewReader(f), bufio.NewWriter(f))
 	}
-	fmt.Fprintf(g.tty, "\n⚠️  %s が次のアクセスを求めています:\n", filepath.Base(g.app))
+	fmt.Fprintf(g.tty, "\n⚠️  %s requests access to:\n", filepath.Base(g.app))
 	for _, w := range wants {
 		fmt.Fprintf(g.tty, "     %-5s %s\n", w.Kind, w.Target)
 	}
-	fmt.Fprint(g.tty, "   [y] 今回のみ  [a] 常に許可  [n] 拒否 > ")
+	fmt.Fprint(g.tty, "   [y] this time  [a] always  [n] deny > ")
 	g.tty.Flush()
 	line, _ := g.tty.ReadString('\n')
 	return strings.ToLower(strings.TrimSpace(line))

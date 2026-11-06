@@ -7,11 +7,11 @@ import (
 	"sort"
 )
 
-const usage = `eel - 許可を覚える小さな JS/TS ランタイム
+const usage = `eel - a tiny JS/TS runtime that remembers permissions
 
-  eel run <script> [args...]   スクリプトを実行
-  eel perms                    「常に許可」の一覧
-  eel revoke <script>          スクリプトの許可をすべて取り消す
+  eel run <script> [args...]   run a script
+  eel perms                    list "always" grants
+  eel revoke <script>          revoke all grants for a script
 `
 
 func main() {

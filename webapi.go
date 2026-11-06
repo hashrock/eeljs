@@ -5,9 +5,9 @@ import (
 	"github.com/dop251/goja_nodejs/url"
 )
 
-// installWebAPI は I/O を伴わない Web 標準のグローバルを足す。
+// installWebAPI adds web-standard globals that do no I/O.
 func installWebAPI(vm *goja.Runtime) {
-	// require を有効にすると許可を経ずにファイルを読めるため、モジュールを直接初期化する
+	// Enabling require would allow reading files without permission, so initialize the module directly.
 	mod := vm.NewObject()
 	exports := vm.NewObject()
 	mod.Set("exports", exports)
@@ -24,7 +24,7 @@ func installWebAPI(vm *goja.Runtime) {
 			get encoding() { return "utf-8"; }
 			decode(b) { return b === undefined ? "" : utf8Decode(b instanceof ArrayBuffer ? new Uint8Array(b) : b); }
 		}
-		// goja に GC 連動の仕組みが無いため、一度も回収しない実装にする（仕様上は許される）
+		// goja can't observe GC, so these never collect (which the spec allows).
 		class WeakRef {
 			#target;
 			constructor(target) { this.#target = target; }

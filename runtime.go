@@ -15,7 +15,7 @@ import (
 	"github.com/evanw/esbuild/pkg/api"
 )
 
-// bundle は TS/JS と相対 import を1本の JS にまとめる。
+// bundle combines TS/JS and its imports into a single JS file.
 func bundle(entry string) (string, error) {
 	r := api.Build(api.BuildOptions{
 		EntryPoints: []string{entry},
@@ -51,7 +51,7 @@ func run(script string, args []string) int {
 		return 1
 	}
 	guard := &Guard{path: path, app: appID(path, code, m.Pin), store: loadStore()}
-	// 宣言された許可は実行に必要なものなので、得られなければ実行しない
+	// Declared permissions are required, so don't run without them.
 	if err := guard.check(m.Allow...); err != nil {
 		fmt.Fprintln(os.Stderr, "eel:", err)
 		return 1
@@ -95,9 +95,9 @@ type runResult struct {
 	Stderr string `json:"stderr"`
 }
 
-// install は同期 API だけを提供する。イベントループを持たないための割り切り。
+// install provides synchronous APIs only, so no event loop is needed.
 func install(vm *goja.Runtime, g *Guard, args []string) {
-	// must は許可を確認し、拒否なら JS 例外にする。
+	// must checks the permission and throws a JS exception if denied.
 	must := func(kind, target string) {
 		if err := g.check(Grant{kind, target}); err != nil {
 			panic(vm.NewGoError(err))

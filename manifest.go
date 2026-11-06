@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// Manifest はエントリファイルの `// @eel-...` 行に書かれた宣言。
+// Manifest holds the `// @eel-...` declarations in the entry file.
 type Manifest struct {
-	Pin   bool    // 中身のハッシュでもアプリを区別する
-	Allow []Grant // 実行前にまとめて許可を取る
+	Pin   bool    // also identify the app by a hash of its code
+	Allow []Grant // granted all at once before running
 }
 
 var directive = regexp.MustCompile(`(?m)^// @eel-(pin|allow)\b(.*)$`)
@@ -32,10 +32,10 @@ func readManifest(path string) (Manifest, error) {
 		}
 		f := strings.Fields(d[2])
 		if len(f) != 2 || !slices.Contains(kinds, f[0]) {
-			return m, fmt.Errorf("宣言の書式が不正です: %s", d[0])
+			return m, fmt.Errorf("invalid declaration: %s", d[0])
 		}
 		g := Grant{f[0], f[1]}
-		// 宣言はスクリプトの持ち物なので、相対パスはスクリプトの場所を基準にする
+		// Declarations belong to the script, so relative paths are resolved from its location.
 		if (g.Kind == "read" || g.Kind == "write") && !filepath.IsAbs(g.Target) {
 			g.Target = filepath.Join(filepath.Dir(path), g.Target)
 		}

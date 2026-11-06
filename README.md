@@ -1,48 +1,49 @@
 # eel
 
-許可したアクセスを覚えてくれる、簡易 CLI 向けの小さな JS/TS ランタイム。
+A tiny JS/TS runtime for simple CLIs that remembers the access you've granted.
 
 ```sh
 go build -o eel .
 eel run examples/hello.ts
 ```
 
-スクリプトが初めてアクセスしようとしたとき、Android のように確認します。
+The first time a script tries to access something, eel asks, Android-style.
 
 ```
-⚠️  hello.ts が net へのアクセスを求めています: example.com
-   [y] 今回のみ  [a] 常に許可  [n] 拒否 >
+⚠️  hello.ts requests access to:
+     net   example.com
+   [y] this time  [a] always  [n] deny >
 ```
 
-「常に許可」はスクリプトのパスごとに保存されます（`eel perms` / `eel revoke <script>`）。
-端末が無い環境では拒否されます。
+"Always" grants are saved per script path (`eel perms` / `eel revoke <script>`).
+Without a terminal, access is denied.
 
-### 最初にまとめて許可を取る（任意）
+### Ask up front (optional)
 
-エントリファイルに宣言を書くと、実行前に未許可のものをまとめて1回だけ尋ねます。拒否すると実行しません。
+Declare permissions in the entry file, and eel asks for all ungranted ones once before running. If denied, the script doesn't run.
 
 ```ts
 // @eel-allow read ./data
 // @eel-allow net api.github.com
 ```
 
-相対パスはスクリプトの場所が基準です。宣言にないアクセスは、実行中にその都度尋ねます。
+Relative paths are resolved from the script's location. Undeclared access is still asked for at runtime.
 
-### 中身で区別する（任意）
+### Pin to contents (optional)
 
-エントリファイルに `// @eel-pin` の行があると、パスに加えて中身のハッシュでも区別します。
-コード（`import` 先を含む）を書き換えると、許可を出し直すことになります。
+With a `// @eel-pin` line in the entry file, grants are tied to a hash of the code as well as its path.
+Changing the code (including imports) requires granting again.
 
-## 方針
+## Design
 
-- **速さより単純さ**: API はすべて同期。イベントループは持たない。
-- TS と `import`（相対パス・URL）は esbuild でバンドルし、goja で実行する。
-- URL の import は初回だけ取得してキャッシュする（`~/Library/Caches/eel/deps`）。取得に許可は不要。
-- Web 標準のグローバル: `URL` / `URLSearchParams` / `TextEncoder` / `TextDecoder` / `WeakRef` / `FinalizationRegistry`
-- 許可の種類: `read` / `write`（ディレクトリを許可すると配下も含む）、`net`（ホスト）、`env`（変数名）、`run`（コマンド名）
+- **Simple over fast**: every API is synchronous. No event loop.
+- TS and `import` (relative paths and URLs) are bundled with esbuild and run on goja.
+- URL imports are fetched once and cached (`~/Library/Caches/eel/deps`). Fetching them needs no permission.
+- Web globals: `URL` / `URLSearchParams` / `TextEncoder` / `TextDecoder` / `WeakRef` / `FinalizationRegistry`
+- Permission kinds: `read` / `write` (a directory grant covers its contents), `net` (host), `env` (variable name), `run` (command name)
 
-API の型定義: `eel.d.ts`
+API types: `eel.d.ts`
 
-## 制約
+## Limitations
 
-- `WeakRef` は対象を手放さず、`FinalizationRegistry` のコールバックは呼ばれない。JS エンジン（goja）が未対応のための簡易版で、短時間で終わる CLI では問題にならない想定。
+- `WeakRef` never releases its target, and `FinalizationRegistry` callbacks never run. goja doesn't support them, so these are stand-ins; this shouldn't matter for short-lived CLIs.
